@@ -2,8 +2,8 @@
 
 ### 简体中文
 
-`wget --no-check-certificate -O shadowsocks-libev_CN.sh https://raw.githubusercontent.com/uxh/shadowsocks_bash/master/shadowsocks-libev_CN.sh && bash shadowsocks-libev_CN.sh`
+`wget --no-check-certificate -O shadowsocks-libev_CN.sh https://raw.githubusercontent.com/uxh/shadowsocks_bash/add-v2ray/shadowsocks-libev_CN.sh && bash shadowsocks-libev_CN.sh`
 
 ### English
 
-`wget --no-check-certificate -O shadowsocks-libev.sh https://raw.githubusercontent.com/uxh/shadowsocks_bash/master/shadowsocks-libev.sh && bash shadowsocks-libev.sh`
+`wget --no-check-certificate -O shadowsocks-libev.sh https://raw.githubusercontent.com/uxh/shadowsocks_bash/add-v2ray/shadowsocks-libev.sh && bash shadowsocks-libev.sh`
