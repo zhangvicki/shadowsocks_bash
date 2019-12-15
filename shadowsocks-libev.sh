@@ -26,11 +26,19 @@ chacha20
 rc4-md5
 )
 
+#Plugin
+plugins=(
+not-install
+v2ray
+)
+
 #Version and url
 libsodiumver="libsodium-1.0.18"
 libsodiumurl="https://github.com/jedisct1/libsodium/releases/download/1.0.18-RELEASE/libsodium-1.0.18.tar.gz"
 mbedtlsver="mbedtls-2.16.3"
 mbedtlsurl="https://tls.mbed.org/download/mbedtls-2.16.3-gpl.tgz"
+v2raypluginver="v2ray-plugin-linux-amd64-v1.2.0"
+v2raypluginurl="https://github.com/shadowsocks/v2ray-plugin/releases/download/v1.2.0/v2ray-plugin-linux-amd64-v1.2.0.tar.gz"
 shadowsocksver="shadowsocks-libev-3.3.3"
 shadowsocksurl="https://github.com/shadowsocks/shadowsocks-libev/releases/download/v3.3.3/shadowsocks-libev-3.3.3.tar.gz"
 initscripturl="https://raw.githubusercontent.com/uxh/shadowsocks_bash/master/shadowsocks-libev"
@@ -240,6 +248,35 @@ function set_shadowsocks_config() {
         fi
     done
 
+    echo "Please select shadowsocks's plugin"
+    for ((i=1;i<=${#plugins[@]};i++));
+    do
+        local plugin=${plugins[$i-1]}
+        echo -e "${i}) ${plugin}"
+    done
+    while true
+    do
+        read -p "[Default is ${plugin[0]}]：" pluginnumber
+        if [ -z ${pluginnumber} ]; then
+            pluginnumber="1"
+        fi
+        expr ${pluginnumber} + 1 > /dev/null 2>&1
+        if [ $? -eq 0 ]; then
+            if [ ${pluginnumber} -ge 1 ] && [ ${pluginnumber} -le ${#plugins[@]} ]; then
+                ssplugin=${plugins[${pluginnumber}-1]}
+                echo "-------------------------------"
+                echo "Shadowsocks's Plugin: ${ssplugin}"
+                echo "-------------------------------"
+                break
+            else
+                echo -e "${red}[Error]${plain} Please enter a number between 1 and ${#plugins[@]}!"
+            fi
+        else
+            echo -e "${red}[Error]${plain} Please enter a number between 1 and ${#plugins[@]}!"
+        fi
+    done
+
+
     echo ""
     echo "Press Enter to continue...or Press Ctrl+C to cancel"
     read -n 1
@@ -345,7 +382,7 @@ function install_libsodium() {
     rm -rf ${libsodiumver} ${libsodiumver}.tar.gz
 }
 
-#nstall mbedtls
+#Install mbedtls
 function install_mbedtls() {
     cd ${currentdir}
     if [ ! -f /usr/lib/libmbedtls.a ]; then
@@ -364,6 +401,27 @@ function install_mbedtls() {
 
     cd ${currentdir}
     rm -rf ${mbedtlsver} ${mbedtlsver}-gpl.tgz
+}
+
+#Install plugin
+function install_plugin() {
+    cd ${currentdir}
+    if [[ ${ssplugin} == "v2ray" ]]; then
+        if [ ! -f /usr/bin/v2ray-plugin ]; then
+            download "${v2raypluginver}.tar.gz" "${v2raypluginurl}"
+            tar zxf ${v2raypluginver}.tar.gz
+            mv v2ray-plugin_linux_amd64 /usr/bin/v2ray-plugin
+            if [ $? -ne 0 ]; then
+                echo -e "${red}[Error]${plain} ${v2raypluginver} install failed, please try again!"
+                exit 1
+            fi
+        else
+            echo -e "${green}[Info]${plain} ${v2raypluginver} has been installed."
+        fi
+    fi
+
+    cd ${currentdir}
+    rm -rf ${v2raypluginver}.tar.gz
 }
 
 #Config shadowsocks
@@ -474,6 +532,7 @@ function uninstall_shadowsocks() {
     rm -rf /usr/local/share/doc/shadowsocks-libev
     rm -f /etc/init.d/shadowsocks
     rm -f /root/shadowsocks.txt
+    rm -rf /usr/bin/v2ray-plugin
 }
 
 #Install success
@@ -486,16 +545,20 @@ function install_success() {
     echo -e "Server Port      : \033[41;37m ${ssport} \033[0m"
     echo -e "Password         : \033[41;37m ${sspassword} \033[0m"
     echo -e "Encryption Method: \033[41;37m ${sscipher} \033[0m"
+    if [[ ${ssplugin} != "not-install" ]]; then
+        echo -e "Plugin           : \033[41;37m ${ssplugin} \033[0m"
+    fi
     echo -e "-------------------------------------------------"
     echo -e "ss://${ssurl}"
     echo -e "================================================="
 
     cat > /root/shadowsocks.txt << EOF
 ===============================================
-服务器地址  : $(get_ipv4)
-服务端口    : ${ssport}
-连接密码    : ${sspassword}
-加密方式    : ${sscipher}
+Server IP        : $(get_ipv4)
+Server Port      : ${ssport}
+Password         : ${sspassword}
+Encryption Method: ${sscipher}
+Plugin           : ${ssplugin}
 -----------------------------------------------
 ss://${ssurl}
 ===============================================
@@ -512,6 +575,7 @@ install_main() {
     set_firewall
     install_libsodium
     install_mbedtls
+    install_plugin
     config_shadowsocks
     install_shadowsocks
     install_success
@@ -571,6 +635,7 @@ modify_main() {
     set_shadowsocks_config
     /etc/init.d/shadowsocks stop
     set_firewall
+    install_plugin
     config_shadowsocks
     /etc/init.d/shadowsocks start
     install_success

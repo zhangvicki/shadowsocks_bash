@@ -26,11 +26,19 @@ chacha20
 rc4-md5
 )
 
+#设置插件数组
+plugins=(
+not-install
+v2ray
+)
+
 #环境及程序版本控制
 libsodiumver="libsodium-1.0.18"
 libsodiumurl="https://github.com/jedisct1/libsodium/releases/download/1.0.18-RELEASE/libsodium-1.0.18.tar.gz"
 mbedtlsver="mbedtls-2.16.3"
 mbedtlsurl="https://tls.mbed.org/download/mbedtls-2.16.3-gpl.tgz"
+v2raypluginver="v2ray-plugin-linux-amd64-v1.2.0"
+v2raypluginurl="https://github.com/shadowsocks/v2ray-plugin/releases/download/v1.2.0/v2ray-plugin-linux-amd64-v1.2.0.tar.gz"
 shadowsocksver="shadowsocks-libev-3.3.3"
 shadowsocksurl="https://github.com/shadowsocks/shadowsocks-libev/releases/download/v3.3.3/shadowsocks-libev-3.3.3.tar.gz"
 initscripturl="https://raw.githubusercontent.com/uxh/shadowsocks_bash/master/shadowsocks-libev"
@@ -240,6 +248,34 @@ function set_shadowsocks_config() {
         fi
     done
 
+    echo "请设置 Shadowsocks 的插件"
+    for ((i=1;i<=${#plugins[@]};i++));
+    do
+        local plugin=${plugins[$i-1]}
+        echo -e "${i}) ${plugin}"
+    done
+    while true
+    do
+        read -p "[默认为 ${plugin[0]}]：" pluginnumber
+        if [ -z ${pluginnumber} ]; then
+            pluginnumber="1"
+        fi
+        expr ${pluginnumber} + 1 > /dev/null 2>&1
+        if [ $? -eq 0 ]; then
+            if [ ${pluginnumber} -ge 1 ] && [ ${pluginnumber} -le ${#plugins[@]} ]; then
+                ssplugin=${plugins[${pluginnumber}-1]}
+                echo "-------------------------------"
+                echo "插件已设置为：${ssplugin}"
+                echo "-------------------------------"
+                break
+            else
+                echo -e "${red}[错误]${plain} 请输入 1 和 ${#plugins[@]} 之间的数字！"
+            fi
+        else
+            echo -e "${red}[错误]${plain} 请输入 1 和 ${#plugins[@]} 之间的数字！"
+        fi
+    done
+
     echo ""
     echo "按回车键开始安装...或按 Ctrl+C 键取消"
     read -n 1
@@ -366,6 +402,27 @@ function install_mbedtls() {
     rm -rf ${mbedtlsver} ${mbedtlsver}-gpl.tgz
 }
 
+#安装plugin
+function install_plugin() {
+    cd ${currentdir}
+    if [[ ${ssplugin} == "v2ray" ]]; then
+        if [ ! -f /usr/bin/v2ray-plugin ]; then
+            download "${v2raypluginver}.tar.gz" "${v2raypluginurl}"
+            tar zxf ${v2raypluginver}.tar.gz
+            mv v2ray-plugin_linux_amd64 /usr/bin/v2ray-plugin
+            if [ $? -ne 0 ]; then
+                echo -e "${red}[错误]${plain} ${v2raypluginver} 安装失败，请稍后重试！"
+                exit 1
+            fi
+        else
+            echo -e "${green}[提示]${plain} ${v2raypluginver} 已安装"
+        fi
+    fi
+
+    cd ${currentdir}
+    rm -rf ${v2raypluginver}.tar.gz
+}
+
 #创建shadowsocks配置文件
 function config_shadowsocks() {
     if check_ipv6; then
@@ -474,6 +531,7 @@ function uninstall_shadowsocks() {
     rm -rf /usr/local/share/doc/shadowsocks-libev
     rm -f /etc/init.d/shadowsocks
     rm -f /root/shadowsocks.txt
+    rm -rf /usr/bin/v2ray-plugin
 }
 
 #安装完成信息
@@ -486,6 +544,9 @@ function install_success() {
     echo -e "服务端口    : \033[41;37m ${ssport} \033[0m"
     echo -e "连接密码    : \033[41;37m ${sspassword} \033[0m"
     echo -e "加密方式    : \033[41;37m ${sscipher} \033[0m"
+    if [[ ${ssplugin} != "not-install" ]]; then
+        echo -e "插件类型    : \033[41;37m ${ssplugin} \033[0m"
+    fi
     echo -e "-----------------------------------------------"
     echo -e "ss://${ssurl}"
     echo -e "==============================================="
@@ -496,6 +557,7 @@ function install_success() {
 服务端口    : ${ssport}
 连接密码    : ${sspassword}
 加密方式    : ${sscipher}
+插件类型    : ${ssplugin}
 -----------------------------------------------
 ss://${ssurl}
 ===============================================
@@ -513,6 +575,7 @@ install_main() {
     set_firewall
     install_libsodium
     install_mbedtls
+    install_plugin
     config_shadowsocks
     install_shadowsocks
     install_success
@@ -579,6 +642,7 @@ modify_main() {
     set_shadowsocks_config
     /etc/init.d/shadowsocks stop
     set_firewall
+    install_plugin
     config_shadowsocks
     /etc/init.d/shadowsocks start
     install_success
